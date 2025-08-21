@@ -218,7 +218,14 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
     // already a struct, returns the newly created struct type.
     IRType* wrapConstantBufferElement(IRInst* cbParamInst)
     {
-        auto innerType = as<IRParameterGroupType>(cbParamInst->getDataType())->getElementType();
+        auto paramGroupType = as<IRParameterGroupType>(cbParamInst->getDataType());
+        if (!paramGroupType)
+        {
+            // This is not a parameter group type - probably a descriptor handle
+            // Return nullptr to indicate no wrapping is needed
+            return nullptr;
+        }
+        auto innerType = paramGroupType->getElementType();
         IRBuilder builder(cbParamInst);
         builder.setInsertBefore(cbParamInst);
         auto structType = builder.createStructType();
@@ -454,8 +461,32 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             IRBuilder builder(m_sharedContext->m_irModule);
             auto cbufferType = as<IRConstantBufferType>(innerType);
             auto paramBlockType = as<IRParameterBlockType>(innerType);
+            auto descriptorHandleType = as<IRDescriptorHandleType>(innerType);
+            
             if (cbufferType || paramBlockType)
             {
+                // Check if this is a descriptor handle wrapped in a constant buffer
+                if (cbufferType)
+                {
+                    auto elementType = cbufferType->getElementType();
+                    if (as<IRDescriptorHandleType>(elementType))
+                    {
+                        // This is a DescriptorHandle wrapped in a constant buffer type
+                        // Skip constant buffer processing for descriptor handles
+                        return;
+                    }
+                }
+                if (paramBlockType)
+                {
+                    auto elementType = paramBlockType->getElementType();
+                    if (as<IRDescriptorHandleType>(elementType))
+                    {
+                        // This is a DescriptorHandle wrapped in a parameter block type
+                        // Skip constant buffer processing for descriptor handles
+                        return;
+                    }
+                }
+                
                 innerType = as<IRUniformParameterGroupType>(innerType)->getElementType();
                 if (addressSpace == AddressSpace::ThreadLocal)
                     addressSpace = AddressSpace::Uniform;
@@ -468,7 +499,17 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
                 // a struct.
                 if (!as<IRStructType>(innerType))
                 {
-                    innerType = wrapConstantBufferElement(inst);
+                    auto wrappedType = wrapConstantBufferElement(inst);
+                    if (wrappedType)
+                    {
+                        innerType = wrappedType;
+                    }
+                    else
+                    {
+                        // Unable to wrap the element - this might be a descriptor handle
+                        // Skip the rest of the constant buffer processing
+                        return;
+                    }
                 }
                 builder.addDecorationIfNotExist(innerType, kIROp_SPIRVBlockDecoration);
 
