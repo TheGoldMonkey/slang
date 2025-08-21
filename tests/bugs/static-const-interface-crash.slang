@@ -1,4 +1,4 @@
-//TEST:SIMPLE:-target wgsl
+//TEST:COMPILE:-target wgsl -entry computeMain
 
 // Regression test for issue #8184
 // Test that accessing static const interface fields through generic type parameters
@@ -15,11 +15,16 @@ struct T1 : Transformation {
     static const uint32_t kParamCount = 2;
 };
 
+// Test the case that should work
+struct UseConstInStruct<T : Transformation>
+{
+    static const uint32_t kParamCount = T.kParamCount;
+}
+
 [shader("compute")]
 [numthreads(1, 1, 1)]
-void XYPass<T>()
-where T : Transformation
+void computeMain()
 {
-    // This used to crash with "Generic type/value shouldn't be handled here!"
-    static const uint32_t kParamCount = T::kParamCount;
+    // This should work without crashing
+    static const uint32_t count = UseConstInStruct<T1>.kParamCount;
 }

@@ -8367,8 +8367,8 @@ struct DeclLoweringVisitor : DeclVisitor<DeclLoweringVisitor, LoweredValInfo>
 
         if (const auto genericValueParamDecl = as<GenericValueParamDecl>(decl->parentDecl))
         {
-            // This is a constraint on a local generic value parameter (e.g., in a generic function),
-            // and so it should lower as a parameter of its own.
+            // This is a constraint on a local generic value parameter (e.g., in a generic
+            // function), and so it should lower as a parameter of its own.
             auto supType = lowerType(context, decl->getSup().type);
             auto inst = getBuilder()->emitParam(supType);
             return LoweredValInfo::simple(inst);
@@ -11589,17 +11589,19 @@ LoweredValInfo ensureDecl(IRGenContext* context, Decl* decl)
         // means there's an issue with how the DeclRef was constructed or
         // how substitutions are being handled.
         //
-        // Return a placeholder that won't crash - this should be resolved 
+        // Return a placeholder that won't crash - this should be resolved
         // through proper interface requirement lookup instead.
-        return LoweredValInfo::simple(context->irBuilder->emitParam(lowerType(context, genericValueParam->getType())));
+        return LoweredValInfo::simple(
+            context->irBuilder->emitParam(lowerType(context, genericValueParam->getType())));
     }
     if (auto genericTypeParam = as<GenericTypeParamDecl>(decl))
     {
         // Generic type parameters should be handled through substitution mechanisms
-        // in emitDeclRef, not by direct lowering. 
+        // in emitDeclRef, not by direct lowering.
         // Return a placeholder type parameter that won't crash.
         SLANG_UNUSED(genericTypeParam);
-        return LoweredValInfo::simple(context->irBuilder->emitParam(context->irBuilder->getTypeKind()));
+        return LoweredValInfo::simple(
+            context->irBuilder->emitParam(context->irBuilder->getTypeKind()));
     }
 
     IRBuilder subIRBuilder(context->irBuilder->getModule());
