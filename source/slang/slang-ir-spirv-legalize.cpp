@@ -461,32 +461,15 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             IRBuilder builder(m_sharedContext->m_irModule);
             auto cbufferType = as<IRConstantBufferType>(innerType);
             auto paramBlockType = as<IRParameterBlockType>(innerType);
-            auto descriptorHandleType = as<IRDescriptorHandleType>(innerType);
+            
+            // Skip constant buffer processing for descriptor handles entirely
+            if (as<IRDescriptorHandleType>(innerType))
+            {
+                return;
+            }
             
             if (cbufferType || paramBlockType)
             {
-                // Check if this is a descriptor handle wrapped in a constant buffer
-                if (cbufferType)
-                {
-                    auto elementType = cbufferType->getElementType();
-                    if (as<IRDescriptorHandleType>(elementType))
-                    {
-                        // This is a DescriptorHandle wrapped in a constant buffer type
-                        // Skip constant buffer processing for descriptor handles
-                        return;
-                    }
-                }
-                if (paramBlockType)
-                {
-                    auto elementType = paramBlockType->getElementType();
-                    if (as<IRDescriptorHandleType>(elementType))
-                    {
-                        // This is a DescriptorHandle wrapped in a parameter block type
-                        // Skip constant buffer processing for descriptor handles
-                        return;
-                    }
-                }
-                
                 innerType = as<IRUniformParameterGroupType>(innerType)->getElementType();
                 if (addressSpace == AddressSpace::ThreadLocal)
                     addressSpace = AddressSpace::Uniform;
